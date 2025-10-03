@@ -79,8 +79,12 @@ func completeTask(currentTodos []Todo) ([]Todo, error) {
 	}
 
 	input = strings.TrimSpace(input)
-	todoNum, _ := strconv.Atoi(input)
-	if todoNum < 1 {
+	todoNum, err := strconv.Atoi(input)
+	if err != nil {
+		// The input was not a valid number
+		return nil, errors.New("invalid input: please enter a number")
+	}
+	if todoNum < 1 || todoNum > len(currentTodos) {
 		return nil, errors.New("Enter a valid index of todo")
 	}
 
