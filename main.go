@@ -132,8 +132,10 @@ func main() {
 			todos, err := completeTask(todos)
 			if err != nil {
 				fmt.Println(err)
+			} else {
+				writeToFile(filename, todos)
+				fmt.Println("Todo marked as complete!")
 			}
-			writeToFile(filename, todos)
 
 		case "q":
 			writeToFile(filename, todos) // Save before quitting
