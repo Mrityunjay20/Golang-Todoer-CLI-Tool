@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -66,12 +68,42 @@ func writeToFile(filename string, todos []Todo) {
 	}
 }
 
+func completeTask(currentTodos []Todo) ([]Todo, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Complete a todo - number: ")
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading input:", err)
+		return currentTodos, nil
+	}
+
+	input = strings.TrimSpace(input)
+	todoNum, _ := strconv.Atoi(input)
+	if todoNum < 1 {
+		return nil, errors.New("Enter a valid index of todo")
+	}
+
+	for i, _ := range currentTodos {
+		if i == todoNum-1 {
+			currentTodos[i].Completed = true
+		}
+	}
+
+	return currentTodos, nil
+}
+
 func main() {
 	filename := "todos.json"
 	var todos []Todo
 
 	// Load existing todos if file exists
 	data, err := os.ReadFile(filename)
+
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Println("Error reading file:", err)
+		panic("cant read from existing storage file, file does not exist")
+	}
 	if err == nil && len(data) > 0 {
 		if err := json.Unmarshal(data, &todos); err != nil {
 			fmt.Println("Error decoding JSON:", err)
@@ -84,6 +116,7 @@ func main() {
 		fmt.Println("Choose an option:")
 		fmt.Println("(1) Show Current Todos")
 		fmt.Println("(2) Add a Todo")
+		fmt.Println("(3) Complete a Todo")
 		fmt.Println("(q) Quit")
 
 		option, _ := reader.ReadString('\n')
@@ -95,6 +128,13 @@ func main() {
 		case "2":
 			todos = addTodo(todos)
 			writeToFile(filename, todos) // Save immediately
+		case "3":
+			todos, err := completeTask(todos)
+			if err != nil {
+				fmt.Println(err)
+			}
+			writeToFile(filename, todos)
+
 		case "q":
 			writeToFile(filename, todos) // Save before quitting
 			fmt.Println("Goodbye!")
