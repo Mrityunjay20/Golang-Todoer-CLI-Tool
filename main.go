@@ -2,54 +2,67 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 )
 
-// Todo is a struct that represents a single todo item.
-// We've expanded it to be more descriptive.
-
 type Todo struct {
-	Title       string
-	Description string
-	Completed   bool
-	Deadline    time.Time
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Completed   bool      `json:"completed"`
+	Deadline    time.Time `json:"deadline"`
 }
 
-func addTodo(CurrentTodos []Todo) []Todo {
+func addTodo(currentTodos []Todo) []Todo {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Printf("Add a todo - Title\n")
+	fmt.Print("Add a todo - Title: ")
 	input, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println("Error reading input:", err)
+		return currentTodos
 	}
 
-	// Trim the newline and any extra spaces
 	input = strings.TrimSpace(input)
 
-	newTodos := Todo{
+	newTodo := Todo{
 		Title:       input,
 		Description: "coco",
 		Completed:   false,
 		Deadline:    time.Now(),
 	}
 
-	return append(CurrentTodos, newTodos)
+	return append(currentTodos, newTodo)
 }
 
 func printAllTodo(todos []Todo) {
+	fmt.Println()
 	for i, todo := range todos {
 		status := "[ ]"
 		if todo.Completed {
 			status = "[✓]"
 		}
 		formattedDeadline := todo.Deadline.Format("Jan 2, 2006")
-
 		fmt.Printf("%d. %s %s (Due: %s)\n", i+1, status, todo.Title, formattedDeadline)
-		fmt.Println("")
+	}
+	fmt.Println()
+}
+
+func writeToFile(filename string, todos []Todo) {
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(todos); err != nil {
+		fmt.Println("Error writing JSON:", err)
 	}
 }
 
@@ -57,20 +70,15 @@ func main() {
 	filename := "todos.json"
 	var todos []Todo
 
-	// Try to open the file, create it if it doesn't exist
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		fmt.Println("Error opening/creating file:", err)
-		return
+	// Load existing todos if file exists
+	data, err := os.ReadFile(filename)
+	if err == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, &todos); err != nil {
+			fmt.Println("Error decoding JSON:", err)
+		}
 	}
-	defer file.Close()
 
-	fmt.Println("File is ready:", filename)
-
-	writer := bufio.NewWriterSize(file, 1024*1024)
-	writer.WriteString("Line 1\n")
-	writer.WriteString("Line n2\n")
-	writer.Flush()
+	reader := bufio.NewReader(os.Stdin)
 
 	for {
 		fmt.Println("Choose an option:")
@@ -78,7 +86,6 @@ func main() {
 		fmt.Println("(2) Add a Todo")
 		fmt.Println("(q) Quit")
 
-		reader := bufio.NewReader(os.Stdin)
 		option, _ := reader.ReadString('\n')
 		option = strings.TrimSpace(strings.ToLower(option))
 
@@ -87,13 +94,13 @@ func main() {
 			printAllTodo(todos)
 		case "2":
 			todos = addTodo(todos)
+			writeToFile(filename, todos) // Save immediately
 		case "q":
-			return
-		case "Q":
+			writeToFile(filename, todos) // Save before quitting
+			fmt.Println("Goodbye!")
 			return
 		default:
 			fmt.Println("Invalid command. Please try again.")
 		}
 	}
-
 }
